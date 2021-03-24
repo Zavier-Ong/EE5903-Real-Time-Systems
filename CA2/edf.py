@@ -16,7 +16,6 @@ class Task:
         self.num_jobs_missed = 0
         self.next_allowed_task = 0
         self.ready = True
-        self.num_preemptions = 0
         
         split = details.split(',')
         self.tid = idx
@@ -49,6 +48,7 @@ def get_earliest_deadline_task_list(task_list):
 class Scheduler:
     def __init__(self):
         self.curr_tid = -1
+        self.task_start = 0
         self.tasks_completed = 0
         self.tasks_missed = 0
         
@@ -58,30 +58,57 @@ class Scheduler:
                 return task
         return None
 
-    def schedule(self, t):
+    def schedule(self, t, is_last):
         for task in task_set:
             if task.tid == self.curr_tid:
                 task.progress += 1
                 if task.progress == task.wcet:
                     task.completed = True
+                    task.ready = False
+                    print('Task {} completed at T={}'.format(task.tid, t))
             
             if task.next_deadline == t:
                 if not task.completed:
-                    print('Deadline for task {} is missed at T='.format(task.tid, t))
+                    print('Deadline for task {} is missed at T={}'.format(task.tid, t))
                 task.next_deadline += task.period
                 task.progress = 0
                 task.completed = False
+                task.ready = True
         
-        task_list = get_earliest_deadline_task_list(task_set)
+        task_list = [task for task in task_set if task.ready]
+        task_list = get_earliest_deadline_task_list(task_list)
         
-        if self.curr_tid == task_list[0].tid:
-            print('Task {} ran from T={} to T={}'.format(task.tid, task.job_start, )
+        #print final message at the last iteration
+        if is_last:
+            if self.curr_tid != -1:
+                print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
+            else:
+                print('Scheduler is idle from T={} to T={}'.format(self.task_start, t))
+            return
+            
+        if not task_list:
+            if self.curr_tid != -1:
+                print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
+                self.task_start = t
+                self.curr_tid = -1
+        elif self.curr_tid != task_list[0].tid:
+            if self.curr_tid != -1:
+                print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
+            else:
+                if self.task_start != t:
+                    print('Scheduler is idle from T={} to T={}'.format(self.task_start, t))
+            self.task_start = t
+            self.curr_tid = task_list[0].tid
+        
         
     
     def run(self, duration):
         t = 0;
         while t < duration:
-            self.schedule(t)
+            is_last = False
+            if t == duration-1:
+                is_last = True
+            self.schedule(t, is_last)
             t += 1
         print('Simulation Complete.')
         print('Tasks completed: {}.'.format(self.tasks_completed))
@@ -103,5 +130,5 @@ utilization_test(task_set)
    
 #start scheduling
 scheduler = Scheduler()
-scheduler.run(hyper_period)
+scheduler.run(hyper_period*2)
 

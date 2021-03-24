@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 """
+Created on Wed Mar 24 19:26:22 2021
+
+@author: eleojjz
+"""
+# -*- coding: utf-8 -*-
+"""
 Created on Thu Mar 18 18:31:26 2021
 
 @author: eleojjz
@@ -26,6 +32,9 @@ class Task:
         print('Task ID: ' + str(self.tid) + ' WCET: ' + str(self.wcet) + 
               ' Deadline: ' + str(self.next_deadline) + 
               ' Period: ' + str(self.period))
+    
+    def get_laxity(self, t):
+        return (t - self.next_deadline) - (self.wcet-self.progress)
 
 def lcm(a, b):
     return abs(a*b) // math.gcd(a, b)
@@ -71,10 +80,16 @@ class Scheduler:
                 task.progress = 0
                 task.completed = False
                 task.ready = True
+            
+            
+            task_lax = task.get_laxity(t)
+            print('T={} Task {} {}'.format(t, task.tid, task_lax))
+            if task_lax == 0:
+                print('Task {} has reached zero laxity'.format(task.tid))
+                print('..........')
         
         task_list = [task for task in task_set if task.ready]
         task_list = get_earliest_deadline_task_list(task_list)
-        
         #print final message at the last iteration
         if is_last:
             if self.curr_tid != -1:

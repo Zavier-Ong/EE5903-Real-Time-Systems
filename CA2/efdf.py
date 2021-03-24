@@ -34,7 +34,7 @@ class Task:
               ' Period: ' + str(self.period))
     
     def get_laxity(self, t):
-        return (t - self.next_deadline) - (self.wcet-self.progress)
+        return (self.next_deadline - t) - (self.wcet-self.progress)
 
 def lcm(a, b):
     return abs(a*b) // math.gcd(a, b)
@@ -83,9 +83,8 @@ class Scheduler:
             
             
             task_lax = task.get_laxity(t)
-            print('T={} Task {} {}'.format(t, task.tid, task_lax))
             if task_lax == 0:
-                print('Task {} has reached zero laxity'.format(task.tid))
+                print('T={} Task {} has reached zero laxity'.format(t, task.tid))
                 print('..........')
         
         task_list = [task for task in task_set if task.ready]

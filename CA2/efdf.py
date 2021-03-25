@@ -18,9 +18,11 @@ class Task:
         self.completed = False
         self.progress = 0
         self.job_start = -1
+        self.times_preempted = 0
         self.num_jobs_completed = 0
         self.num_jobs_missed = 0
         self.ready = True
+        self.laxity_status = 1
         
         split = details.split(',')
         self.tid = idx
@@ -35,6 +37,9 @@ class Task:
     
     def get_laxity(self, t):
         return (self.next_deadline - t) - (self.wcet-self.progress)
+    
+    def get_remaining_et(self):
+        return self.wcet - self.progress
 
 def lcm(a, b):
     return abs(a*b) // math.gcd(a, b)
@@ -49,8 +54,6 @@ def utilization_test(task_set):
     else:
         return False
     
-def get_earliest_deadline_task_list(task_list):
-    return sorted(task_list, key = attrgetter('next_deadline'))
 
 
 class Scheduler:
@@ -59,6 +62,34 @@ class Scheduler:
         self.task_start = 0
         self.tasks_completed = 0
         self.tasks_missed = 0
+        self.zero_laxity_task = -1
+        
+    def get_task_from_tid(self, tid):
+        for task in task_set:
+            if task.tid == tid:
+                return task
+        return None
+            
+    def get_earliest_deadline_task_list_with_zero_laxity(self, task_list, t):
+        remaining_et = 9999
+        for task in task_list:
+            task.laxity_status = task.get_laxity(t)
+            if task.laxity_status == 0:
+                self.zero_laxity_task = task.tid
+                print('T={} Task {} has reached zero laxity'.format(t, task.tid))
+                if task.get_remaining_et() < remaining_et:
+                    priority_task = task
+            elif task.laxity_status < 0:
+                print('task {} has reached negative laxity'.format(task.tid))
+                task_list.remove(task)
+    
+        if self.zero_laxity_task != -1:
+            task_list = sorted(task_list, key = attrgetter('next_deadline'))
+            #shifting zero laxity task to first index
+            task_list.insert(0, task_list.pop(task_list.index(priority_task)))
+            return task_list
+        else:
+            return sorted(task_list, key = attrgetter('next_deadline'))
 
     def schedule(self, t, is_last):
         for task in task_set:
@@ -69,6 +100,7 @@ class Scheduler:
                     task.ready = False
                     task.num_jobs_completed += 1
                     self.tasks_completed += 1
+                    self.zero_laxity_task = -1
                     print('Task {} completed.'.format(task.tid))
             
             if task.next_deadline == t:
@@ -81,14 +113,11 @@ class Scheduler:
                 task.completed = False
                 task.ready = True
             
-            
-            task_lax = task.get_laxity(t)
-            if task_lax == 0:
-                print('T={} Task {} has reached zero laxity'.format(t, task.tid))
-                print('..........')
-        
-        task_list = [task for task in task_set if task.ready]
-        task_list = get_earliest_deadline_task_list(task_list)
+        if self.zero_laxity_task == -1:
+            task_list = [task for task in task_set if task.ready]
+            task_list = self.get_earliest_deadline_task_list_with_zero_laxity(task_list, t)
+        else:
+            task_list = [self.get_task_from_tid(self.zero_laxity_task)]
         #print final message at the last iteration
         if is_last:
             if self.curr_tid != -1:
@@ -96,7 +125,8 @@ class Scheduler:
             else:
                 print('Scheduler is idle from T={} to T={}'.format(self.task_start, t))
             return
-            
+        
+        #scheduler will be idle on the next t
         if not task_list:
             if self.curr_tid != -1:
                 print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
@@ -104,6 +134,10 @@ class Scheduler:
                 self.curr_tid = -1
         elif self.curr_tid != task_list[0].tid:
             if self.curr_tid != -1:
+                curr_task = self.get_task_from_tid(self.curr_tid)
+                if not curr_task.completed:
+                    curr_task.times_preempted += 1
+                    print('Task {} has been preempted'.format(self.curr_tid))
                 print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
             else:
                 if self.task_start != t:
@@ -129,9 +163,9 @@ class Scheduler:
         print('Simulation Complete.')
         print('Simulation Report')
         print('----------------------------------------------')
-        print('Task ID | # Executed | # Completed | # Missed')
+        print('Task ID | # Executed | # Completed | # Missed | # preempted')
         for task in task_set:
-            print('{} | {} | {} | {}'.format(task.tid, (task.num_jobs_missed+task.num_jobs_completed), task.num_jobs_completed, task.num_jobs_missed))
+            print('{} | {} | {} | {} | {}'.format(task.tid, (task.num_jobs_missed+task.num_jobs_completed), task.num_jobs_completed, task.num_jobs_missed, task.times_preempted))
         
         print('Tasks completed: {}.'.format(self.tasks_completed))
         print('Tasks missed: {}.'.format(self.tasks_missed))

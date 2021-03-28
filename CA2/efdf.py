@@ -11,6 +11,7 @@ Created on Thu Mar 18 18:31:26 2021
 @author: eleojjz
 """
 import math
+import matplotlib.pyplot as plt
 from operator import attrgetter
 
 class Task:
@@ -23,6 +24,7 @@ class Task:
         self.num_jobs_missed = 0
         self.ready = True
         self.laxity_status = 1
+        self.execution_time_list= []
         
         split = details.split(',')
         self.tid = idx
@@ -71,14 +73,15 @@ class Scheduler:
         return None
             
     def get_earliest_deadline_task_list_with_zero_laxity(self, task_list, t):
-        remaining_et = 9999
         for task in task_list:
+            remaining_et = 9999
             task.laxity_status = task.get_laxity(t)
             if task.laxity_status == 0:
                 self.zero_laxity_task = task.tid
                 print('T={} Task {} has reached zero laxity'.format(t, task.tid))
                 if task.get_remaining_et() < remaining_et:
                     priority_task = task
+                    remaining_et = task.get_remaining_et
             elif task.laxity_status < 0:
                 print('task {} has reached negative laxity'.format(task.tid))
                 task_list.remove(task)
@@ -112,7 +115,8 @@ class Scheduler:
                 task.progress = 0
                 task.completed = False
                 task.ready = True
-            
+        
+        # if there exist a zero laxity task, only the zero laxity task will be scheduled 
         if self.zero_laxity_task == -1:
             task_list = [task for task in task_set if task.ready]
             task_list = self.get_earliest_deadline_task_list_with_zero_laxity(task_list, t)
@@ -122,6 +126,10 @@ class Scheduler:
         if is_last:
             if self.curr_tid != -1:
                 print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
+                #add execution time into list for plotting
+                task = self.get_task_from_tid(self.curr_tid)
+                et = [i for i in range(self.task_start, t+1)]
+                task.execution_time_list.extend(et)
             else:
                 print('Scheduler is idle from T={} to T={}'.format(self.task_start, t))
             return
@@ -130,6 +138,12 @@ class Scheduler:
         if not task_list:
             if self.curr_tid != -1:
                 print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
+                
+                #add execution time into list for plotting
+                task = self.get_task_from_tid(self.curr_tid)
+                et = [i for i in range(self.task_start, t+1)]
+                task.execution_time_list.extend(et)
+                
                 self.task_start = t
                 self.curr_tid = -1
         elif self.curr_tid != task_list[0].tid:
@@ -139,12 +153,15 @@ class Scheduler:
                     curr_task.times_preempted += 1
                     print('Task {} has been preempted'.format(self.curr_tid))
                 print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
+                #add execution time into list for plotting
+                task = self.get_task_from_tid(self.curr_tid)
+                et = [i for i in range(self.task_start, t+1)]
+                task.execution_time_list.extend(et)
             else:
                 if self.task_start != t:
                     print('Scheduler is idle from T={} to T={}'.format(self.task_start, t))
             self.task_start = t
             self.curr_tid = task_list[0].tid
-        
         
     
     def run(self, duration):
@@ -157,6 +174,7 @@ class Scheduler:
             t += 1
         
         self.print_simulation_report()
+        self.draw_schedule(duration)
     
     def print_simulation_report(self):
         
@@ -170,6 +188,21 @@ class Scheduler:
         print('Tasks completed: {}.'.format(self.tasks_completed))
         print('Tasks missed: {}.'.format(self.tasks_missed))
         
+    def draw_schedule(self, duration):
+        x = [i for i in range(duration+1)]
+        for task in task_set:
+            task_running_schedule = []
+            for i in range(duration+1):
+                if i in task.execution_time_list:
+                    task_running_schedule.append(1)
+                else:
+                    task_running_schedule.append(0)
+            print(task_running_schedule)
+            plt.plot(x, task_running_schedule, label='Task {}'.format(task.tid))
+        
+        plt.legend()
+        plt.show()
+            
         
 # Reading task set
 task_set = []

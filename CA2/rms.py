@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Mar 24 19:26:22 2021
+Created on Tue Mar 30 14:53:12 2021
 
 @author: eleojjz
 """
@@ -23,7 +23,6 @@ class Task:
         self.num_jobs_completed = 0
         self.num_jobs_missed = 0
         self.ready = True
-        self.laxity_status = 1
         self.execution_time_list= []
         
         split = details.split(',')
@@ -36,12 +35,6 @@ class Task:
         print('Task ID: ' + str(self.tid) + ' WCET: ' + str(self.wcet) + 
               ' Deadline: ' + str(self.next_deadline) + 
               ' Period: ' + str(self.period))
-    
-    def get_laxity(self, t):
-        return (self.next_deadline - t) - (self.wcet-self.progress)
-    
-    def get_remaining_et(self):
-        return self.wcet - self.progress
 
 def lcm(a, b):
     return abs(a*b) // math.gcd(a, b)
@@ -56,7 +49,14 @@ def utilization_test(task_set):
     else:
         return False
     
+def get_earliest_period_task_list(task_list):
+    return sorted(task_list, key = attrgetter('period'))
 
+def get_task_from_tid(tid):
+    for task in task_set:
+        if task.tid == tid:
+            return task
+    return None
 
 class Scheduler:
     def __init__(self):
@@ -64,35 +64,12 @@ class Scheduler:
         self.task_start = 0
         self.tasks_completed = 0
         self.tasks_missed = 0
-        self.zero_laxity_task = -1
-        
+    
     def get_task_from_tid(self, tid):
         for task in task_set:
             if task.tid == tid:
                 return task
         return None
-            
-    def get_earliest_deadline_task_list_with_zero_laxity(self, task_list, t):
-        for task in task_list:
-            remaining_et = 9999
-            task.laxity_status = task.get_laxity(t)
-            if task.laxity_status == 0:
-                self.zero_laxity_task = task.tid
-                print('T={} Task {} has reached zero laxity'.format(t, task.tid))
-                if task.get_remaining_et() < remaining_et:
-                    priority_task = task
-                    remaining_et = task.get_remaining_et
-            elif task.laxity_status < 0:
-                print('task {} has reached negative laxity'.format(task.tid))
-                task_list.remove(task)
-    
-        if self.zero_laxity_task != -1:
-            task_list = sorted(task_list, key = attrgetter('next_deadline'))
-            #shifting zero laxity task to first index
-            task_list.insert(0, task_list.pop(task_list.index(priority_task)))
-            return task_list
-        else:
-            return sorted(task_list, key = attrgetter('next_deadline'))
 
     def schedule(self, t, is_last):
         for task in task_set:
@@ -103,7 +80,6 @@ class Scheduler:
                     task.ready = False
                     task.num_jobs_completed += 1
                     self.tasks_completed += 1
-                    self.zero_laxity_task = -1
                     print('Task {} completed.'.format(task.tid))
             
             if task.next_deadline == t:
@@ -116,12 +92,8 @@ class Scheduler:
                 task.completed = False
                 task.ready = True
         
-        # if there exist a zero laxity task, only the zero laxity task will be scheduled 
-        if self.zero_laxity_task == -1:
-            task_list = [task for task in task_set if task.ready]
-            task_list = self.get_earliest_deadline_task_list_with_zero_laxity(task_list, t)
-        else:
-            task_list = [self.get_task_from_tid(self.zero_laxity_task)]
+        task_list = [task for task in task_set if task.ready]
+        task_list = get_earliest_period_task_list(task_list)
         #print final message at the last iteration
         if is_last:
             if self.curr_tid != -1:
@@ -148,7 +120,7 @@ class Scheduler:
                 self.curr_tid = -1
         elif self.curr_tid != task_list[0].tid:
             if self.curr_tid != -1:
-                curr_task = self.get_task_from_tid(self.curr_tid)
+                curr_task = get_task_from_tid(self.curr_tid)
                 if not curr_task.completed:
                     curr_task.times_preempted += 1
                     print('Task {} has been preempted'.format(self.curr_tid))
@@ -162,6 +134,7 @@ class Scheduler:
                     print('Scheduler is idle from T={} to T={}'.format(self.task_start, t))
             self.task_start = t
             self.curr_tid = task_list[0].tid
+        
         
     
     def run(self, duration):
@@ -206,7 +179,7 @@ class Scheduler:
             axs[plt_idx].legend(loc='upper right')
             plt_idx += 1
         plt.show()
-            
+        
         
 # Reading task set
 task_set = []

@@ -72,7 +72,7 @@ class Scheduler:
                 return task
         return None
             
-    def get_earliest_deadline_task_list_with_zero_laxity(self, task_list, t):
+    def get_earliest_period_task_list_with_zero_laxity(self, task_list, t):
         for task in task_list:
             remaining_et = 9999
             task.laxity_status = task.get_laxity(t)
@@ -87,7 +87,7 @@ class Scheduler:
                 task_list.remove(task)
     
         if self.zero_laxity_task != -1:
-            task_list = sorted(task_list, key = attrgetter('next_deadline'))
+            task_list = sorted(task_list, key = attrgetter('period'))
             #shifting zero laxity task to first index
             task_list.insert(0, task_list.pop(task_list.index(priority_task)))
             return task_list
@@ -119,7 +119,7 @@ class Scheduler:
         # if there exist a zero laxity task, only the zero laxity task will be scheduled 
         if self.zero_laxity_task == -1:
             task_list = [task for task in task_set if task.ready]
-            task_list = self.get_earliest_deadline_task_list_with_zero_laxity(task_list, t)
+            task_list = self.get_earliest_period_task_list_with_zero_laxity(task_list, t)
         else:
             task_list = [self.get_task_from_tid(self.zero_laxity_task)]
         #print final message at the last iteration

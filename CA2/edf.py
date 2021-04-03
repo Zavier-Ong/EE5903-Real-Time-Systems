@@ -5,6 +5,7 @@ Created on Thu Mar 18 18:31:26 2021
 @author: eleojjz
 """
 import math
+import sys
 import matplotlib.pyplot as plt
 from operator import attrgetter
 
@@ -33,15 +34,17 @@ class Task:
 def lcm(a, b):
     return abs(a*b) // math.gcd(a, b)
 
+
 def utilization_test(task_set):
     util = 0;
     for task in task_set:
         util += float(task.wcet/task.period)
     print('Schedulability test: U = ' + str(util))
     if (util <= 1):
-        return True
+        print('Scedulability test is within utilization bound of 1. All tasks will be able to meet its deadline')
     else:
-        return False
+        print('Scedulability test is not within utilization bound of 1. Some tasks may not be able to meet its deadline')
+ 
     
 def get_earliest_deadline_task_list(task_list):
     return sorted(task_list, key = attrgetter('next_deadline'))
@@ -74,7 +77,7 @@ class Scheduler:
                     task.ready = False
                     task.num_jobs_completed += 1
                     self.tasks_completed += 1
-                    print('Task {} completed.'.format(task.tid))
+                    print('Task {} completed at T={}.'.format(task.tid, t))
             
             if task.next_deadline == t:
                 if not task.completed:
@@ -91,20 +94,15 @@ class Scheduler:
         #print final message at the last iteration
         if is_last:
             if self.curr_tid != -1:
-                print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
                 #add execution time into list for plotting
                 task = self.get_task_from_tid(self.curr_tid)
                 et = [i for i in range(self.task_start+1, t+1)]
                 task.execution_time_list.extend(et)
-            else:
-                print('Scheduler is idle from T={} to T={}'.format(self.task_start, t))
             return
         
         #scheduler will be idle on the next t
         if not task_list:
             if self.curr_tid != -1:
-                print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
-                
                 #add execution time into list for plotting
                 task = self.get_task_from_tid(self.curr_tid)
                 et = [i for i in range(self.task_start+1, t+1)]
@@ -117,15 +115,10 @@ class Scheduler:
                 curr_task = get_task_from_tid(self.curr_tid)
                 if not curr_task.completed:
                     curr_task.times_preempted += 1
-                    print('Task {} has been preempted'.format(self.curr_tid))
-                print('Task {} ran from T={} to T={}'.format(self.curr_tid, self.task_start, t))
                 #add execution time into list for plotting
                 task = self.get_task_from_tid(self.curr_tid)
                 et = [i for i in range(self.task_start+1, t+1)]
                 task.execution_time_list.extend(et)
-            else:
-                if self.task_start != t:
-                    print('Scheduler is idle from T={} to T={}'.format(self.task_start, t))
             self.task_start = t
             self.curr_tid = task_list[0].tid
         
@@ -146,11 +139,11 @@ class Scheduler:
     def print_simulation_report(self):
         
         print('Simulation Complete.')
-        print('Simulation Report')
+        print('Simulation Report (EDF)')
         print('----------------------------------------------')
-        print('Task ID | # Executed | # Completed | # Missed | # preempted')
+        print('Task ID | # Executed | # Completed | # Preempted | # Missed')
         for task in task_set:
-            print('{} | {} | {} | {} | {}'.format(task.tid, (task.num_jobs_missed+task.num_jobs_completed), task.num_jobs_completed, task.num_jobs_missed, task.times_preempted))
+            print('{} | {} | {} | {} | {}'.format(task.tid, (task.num_jobs_missed+task.num_jobs_completed), task.num_jobs_completed, task.times_preempted, task.num_jobs_missed))
         
         print('Tasks completed: {}.'.format(self.tasks_completed))
         print('Tasks missed: {}.'.format(self.tasks_missed))
@@ -160,7 +153,7 @@ class Scheduler:
         
         fig, axs = plt.subplots(len(task_set), sharex=True)
         plt.setp(axs, xticks=x, yticks=[0,1])
-        fig.suptitle('Task Schedule')
+        fig.suptitle('Task Schedule (EDF)')
         plt_idx = 0
         for task in task_set:
             task_running_schedule = []
@@ -176,8 +169,12 @@ class Scheduler:
         
         
 # Reading task set
+if len(sys.argv) != 2:
+    print('Please run the code in the following format: edf.py <task_set>.txt')
+    sys.exit()
+filename = sys.argv[1]
 task_set = []
-f = open('taskset.txt', 'r')
+f = open(filename, 'r')
 num_tasks = f.readline()
 hyper_period = 1
 for i in range(int(num_tasks)):
